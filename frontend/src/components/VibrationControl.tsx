@@ -6,6 +6,7 @@ interface VibrationControlProps {
   sessionCode: string;
   connectionStatus: ConnectionStatus;
   partnerConnected: boolean;
+  userCount: number;
   onVibrate: (pattern: number) => void;
   lastMessage: WebSocketMessage | null;
 }
@@ -14,11 +15,13 @@ export default function VibrationControl({
   sessionCode,
   connectionStatus,
   partnerConnected,
+  userCount,
   onVibrate,
   lastMessage,
 }: VibrationControlProps) {
   const [hapticSupport, setHapticSupport] = useState(getHapticSupport());
   const [pressedButton, setPressedButton] = useState<number | null>(null);
+  const [receivedVibration, setReceivedVibration] = useState<number | null>(null);
 
   useEffect(() => {
     // Check haptic support on mount
@@ -28,20 +31,36 @@ export default function VibrationControl({
   // Handle incoming vibration messages
   useEffect(() => {
     if (lastMessage && lastMessage.type === 'vibrate' && lastMessage.pattern) {
+      console.log('Received vibration message, pattern:', lastMessage.pattern);
+      console.log('Haptic support:', hapticSupport);
+      
+      // Show visual indicator
+      setReceivedVibration(lastMessage.pattern);
+      setTimeout(() => {
+        setReceivedVibration(null);
+      }, 1000);
+      
       // Trigger haptic feedback when receiving vibration message
       triggerHaptic(lastMessage.pattern).catch(err => {
         console.warn('Failed to trigger haptic feedback:', err);
       });
     }
-  }, [lastMessage]);
+  }, [lastMessage, hapticSupport]);
 
   const handleButtonClick = async (pattern: number) => {
+    console.log('Button clicked, pattern:', pattern);
+    console.log('Connection status:', connectionStatus);
+    console.log('Partner connected:', partnerConnected);
+    console.log('User count:', userCount);
+    
     setPressedButton(pattern);
     
     // Trigger haptic feedback on button press (for iOS)
+    // On iOS, this will provide haptic feedback automatically when button is pressed
     triggerButtonHaptic();
     
     // Send vibration message to partner
+    console.log('Calling onVibrate with pattern:', pattern);
     onVibrate(pattern);
     
     // Reset pressed state after animation
@@ -53,7 +72,7 @@ export default function VibrationControl({
   const getStatusColor = () => {
     switch (connectionStatus) {
       case 'connected':
-        return partnerConnected ? 'bg-green-500' : 'bg-yellow-500';
+        return userCount >= 2 ? 'bg-green-500' : 'bg-yellow-500';
       case 'connecting':
         return 'bg-yellow-500';
       case 'error':
@@ -67,7 +86,13 @@ export default function VibrationControl({
   const getStatusText = () => {
     switch (connectionStatus) {
       case 'connected':
-        return partnerConnected ? 'Partner Connected' : 'Waiting for Partner';
+        if (partnerConnected) {
+          if (userCount > 1) {
+            return `${userCount} Users Connected`;
+          }
+          return 'Partner Connected';
+        }
+        return 'Waiting for Others';
       case 'connecting':
         return 'Connecting...';
       case 'error':
@@ -114,6 +139,20 @@ export default function VibrationControl({
           </div>
         )}
 
+        {/* Received Vibration Indicator */}
+        {receivedVibration && (
+          <div className="bg-green-100 border-2 border-green-500 rounded-lg p-4 mb-6 animate-pulse">
+            <p className="text-green-800 text-center font-semibold">
+              📳 Vibration Received! Pattern: {receivedVibration}
+              {hapticSupport.method === 'ios-haptic' && (
+                <span className="block text-sm text-green-600 mt-1">
+                  (Note: On iOS, haptic feedback only works on button presses)
+                </span>
+              )}
+            </p>
+          </div>
+        )}
+
         {/* Vibration Buttons */}
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <h2 className="text-xl font-semibold text-gray-800 mb-6 text-center">
@@ -129,18 +168,22 @@ export default function VibrationControl({
               <button
                 key={pattern}
                 onClick={() => handleButtonClick(pattern)}
-                disabled={connectionStatus !== 'connected' || !partnerConnected}
+                disabled={connectionStatus !== 'connected' || userCount < 2}
                 className={`
                   relative py-12 px-6 rounded-xl font-bold text-2xl
                   transition-all duration-200 transform
                   ${
                     pressedButton === pattern
                       ? 'scale-95 bg-indigo-700'
+                      : receivedVibration === pattern
+                      ? 'scale-105 bg-green-400 ring-4 ring-green-300'
                       : 'scale-100 hover:scale-105 active:scale-95'
                   }
                   ${
-                    connectionStatus === 'connected' && partnerConnected
-                      ? 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg hover:shadow-xl'
+                    connectionStatus === 'connected' && userCount >= 2
+                      ? receivedVibration === pattern
+                        ? 'bg-green-400 text-white shadow-lg'
+                        : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg hover:shadow-xl'
                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                   }
                 `}

@@ -43,6 +43,7 @@ export function useWebSocket(url: string | null): UseWebSocketReturn {
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data) as WebSocketMessage;
+          console.log('Received WebSocket message:', data);
           setLastMessage(data);
         } catch (err) {
           console.error('Error parsing WebSocket message:', err);
@@ -98,12 +99,15 @@ export function useWebSocket(url: string | null): UseWebSocketReturn {
   const sendMessage = useCallback((message: WebSocketMessage) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       try {
-        wsRef.current.send(JSON.stringify(message));
+        const messageStr = JSON.stringify(message);
+        console.log('Sending WebSocket message:', messageStr, 'ReadyState:', wsRef.current.readyState);
+        wsRef.current.send(messageStr);
       } catch (err) {
         console.error('Error sending message:', err);
         setError('Failed to send message');
       }
     } else {
+      console.error('WebSocket is not connected. ReadyState:', wsRef.current?.readyState);
       setError('WebSocket is not connected');
     }
   }, []);

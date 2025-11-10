@@ -9,10 +9,24 @@ function App() {
   const [view, setView] = useState<View>('landing');
   const [sessionCode, setSessionCode] = useState<string>('');
   const [partnerConnected, setPartnerConnected] = useState(false);
+  const [userCount, setUserCount] = useState<number>(1);
   const [wsUrl, setWsUrl] = useState<string | null>(null);
 
   // Get WebSocket URL from environment variable
-  const wsBaseUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws';
+  // In production: wss://buzz-production.up.railway.app/ws (or just wss://buzz-production.up.railway.app)
+  // In development: ws://localhost:8000/ws (fallback)
+  const rawWsUrl = import.meta.env.VITE_WS_URL || (import.meta.env.DEV ? 'ws://localhost:8000/ws' : undefined);
+  
+  // Ensure the URL ends with /ws for the WebSocket endpoint
+  // If user provided just the base URL (e.g., wss://buzz-production.up.railway.app),
+  // automatically append /ws
+  const wsBaseUrl = rawWsUrl
+    ? rawWsUrl.endsWith('/ws')
+      ? rawWsUrl
+      : rawWsUrl.endsWith('/')
+      ? `${rawWsUrl}ws`
+      : `${rawWsUrl}/ws`
+    : undefined;
 
   const { sendMessage, lastMessage, connectionStatus, error } = useWebSocket(wsUrl);
 
@@ -24,6 +38,8 @@ function App() {
       case 'session_created':
         if (lastMessage.session_code) {
           setSessionCode(lastMessage.session_code);
+          setUserCount(1);
+          setPartnerConnected(false);
           setView('session');
         }
         break;
@@ -31,22 +47,39 @@ function App() {
       case 'session_joined':
         if (lastMessage.session_code) {
           setSessionCode(lastMessage.session_code);
+          // When joining, user_count will be set by partner_connected message
           setView('session');
         }
         break;
 
       case 'partner_connected':
         setPartnerConnected(true);
+        if (lastMessage.user_count !== undefined) {
+          setUserCount(lastMessage.user_count);
+        } else {
+          // Fallback: increment if we don't have user_count
+          setUserCount(prev => Math.min(prev + 1, 5));
+        }
         break;
 
       case 'partner_disconnected':
-        setPartnerConnected(false);
+        if (lastMessage.user_count !== undefined) {
+          setUserCount(lastMessage.user_count);
+          setPartnerConnected(lastMessage.user_count > 1);
+        } else {
+          // Fallback: decrement if we don't have user_count
+          setUserCount(prev => {
+            const newCount = Math.max(prev - 1, 1);
+            setPartnerConnected(newCount > 1);
+            return newCount;
+          });
+        }
         break;
 
       case 'error':
         console.error('WebSocket error:', lastMessage.message);
         if (lastMessage.message?.includes('Session is full')) {
-          alert('Session is full. Maximum 2 users allowed.');
+          alert('Session is full. Maximum 5 users allowed.');
           setView('landing');
           setWsUrl(null);
         } else if (lastMessage.message?.includes('Session not found')) {
@@ -61,6 +94,10 @@ function App() {
   }, [lastMessage]);
 
   const handleCreateSession = () => {
+    if (!wsBaseUrl) {
+      alert('WebSocket URL is not configured. Please set VITE_WS_URL environment variable in Vercel.');
+      return;
+    }
     setView('create');
     // Connect to WebSocket with "new" endpoint
     const url = `${wsBaseUrl}/new`;
@@ -68,6 +105,10 @@ function App() {
   };
 
   const handleJoinSession = (code: string) => {
+    if (!wsBaseUrl) {
+      alert('WebSocket URL is not configured. Please set VITE_WS_URL environment variable in Vercel.');
+      return;
+    }
     // Connect to WebSocket with session code
     const url = `${wsBaseUrl}/${code}`;
     setWsUrl(url);
@@ -78,10 +119,12 @@ function App() {
     setView('landing');
     setSessionCode('');
     setPartnerConnected(false);
+    setUserCount(1);
     setWsUrl(null);
   };
 
   const handleVibrate = (pattern: number) => {
+    console.log('Sending vibration message:', { type: 'vibrate', pattern });
     sendMessage({
       type: 'vibrate',
       pattern,
@@ -135,6 +178,7 @@ function App() {
         sessionCode={sessionCode}
         connectionStatus={connectionStatus}
         partnerConnected={partnerConnected}
+        userCount={userCount}
         onVibrate={handleVibrate}
         lastMessage={lastMessage}
       />

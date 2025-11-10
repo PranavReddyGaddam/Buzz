@@ -22,6 +22,7 @@ class StatusMessage(BaseModel):
     ]
     session_code: Optional[str] = None
     message: Optional[str] = None
+    user_count: Optional[int] = None
 
 
 class WebSocketMessage(BaseModel):
@@ -29,4 +30,5 @@ class WebSocketMessage(BaseModel):
     pattern: Optional[int] = None
     session_code: Optional[str] = None
     message: Optional[str] = None
+    user_count: Optional[int] = None
 

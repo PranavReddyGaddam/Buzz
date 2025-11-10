@@ -59,7 +59,8 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str):
             connection_session_code = await session_manager.create_session(websocket)
             await websocket.send_json({
                 "type": "session_created",
-                "session_code": connection_session_code
+                "session_code": connection_session_code,
+                "user_count": 1
             })
         else:
             # Validate session code format
@@ -82,9 +83,14 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str):
                 return
 
             connection_session_code = session_code
+            # Get current user count from session
+            session = session_manager.sessions.get(connection_session_code, [])
+            current_user_count = len(session)
+            
             await websocket.send_json({
                 "type": "session_joined",
-                "session_code": connection_session_code
+                "session_code": connection_session_code,
+                "user_count": current_user_count
             })
 
         # Handle incoming messages
@@ -128,12 +134,19 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str):
 
                     # Get session code for this connection
                     session_code_for_vibrate = session_manager.get_session_code(websocket)
+                    print(f"DEBUG: Received vibration message - pattern: {message.pattern}, session_code: {session_code_for_vibrate}")
                     if session_code_for_vibrate:
                         await session_manager.broadcast_vibration(
                             session_code_for_vibrate,
                             message.pattern,
                             websocket
                         )
+                    else:
+                        print(f"ERROR: No session code found for this WebSocket connection")
+                        await websocket.send_json({
+                            "type": "error",
+                            "message": "Not connected to a session"
+                        })
                 else:
                     await websocket.send_json({
                         "type": "error",

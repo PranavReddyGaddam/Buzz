@@ -22,6 +22,7 @@ export interface StatusMessage {
   type: "partner_connected" | "partner_disconnected" | "session_created" | "session_joined" | "error";
   session_code?: string;
   message?: string;
+  user_count?: number;
 }
 
 export type WebSocketMessage = VibrateMessage | SessionMessage | StatusMessage;
