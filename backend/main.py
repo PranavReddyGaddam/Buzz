@@ -125,10 +125,10 @@ async def websocket_endpoint(websocket: WebSocket, session_code: str):
                         })
                         continue
                     
-                    if message.pattern not in [1, 2, 3, 4]:
+                    if message.pattern not in [1, 2, 3, 4, 5]:
                         await websocket.send_json({
                             "type": "error",
-                            "message": "Vibration pattern must be 1, 2, 3, or 4"
+                            "message": "Vibration pattern must be 1, 2, 3, 4, or 5"
                         })
                         continue
 
