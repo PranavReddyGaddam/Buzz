@@ -5,9 +5,16 @@ import VibrationControl from './components/VibrationControl';
 
 type View = 'landing' | 'create' | 'join' | 'session';
 
+// localStorage keys
+const SESSION_CODE_KEY = 'buzz_session_code';
+const SESSION_TYPE_KEY = 'buzz_session_type'; // 'created' or 'joined'
+
 function App() {
   const [view, setView] = useState<View>('landing');
-  const [sessionCode, setSessionCode] = useState<string>('');
+  const [sessionCode, setSessionCode] = useState<string>(() => {
+    // Try to restore session code from localStorage on mount
+    return localStorage.getItem(SESSION_CODE_KEY) || '';
+  });
   const [partnerConnected, setPartnerConnected] = useState(false);
   const [userCount, setUserCount] = useState<number>(1);
   const [wsUrl, setWsUrl] = useState<string | null>(null);
@@ -30,6 +37,16 @@ function App() {
 
   const { sendMessage, lastMessage, connectionStatus, error } = useWebSocket(wsUrl);
 
+  // Save session code to localStorage whenever it changes
+  useEffect(() => {
+    if (sessionCode) {
+      localStorage.setItem(SESSION_CODE_KEY, sessionCode);
+    } else {
+      localStorage.removeItem(SESSION_CODE_KEY);
+      localStorage.removeItem(SESSION_TYPE_KEY);
+    }
+  }, [sessionCode]);
+
   // Handle incoming WebSocket messages
   useEffect(() => {
     if (!lastMessage) return;
@@ -40,6 +57,7 @@ function App() {
           setSessionCode(lastMessage.session_code);
           setUserCount(1);
           setPartnerConnected(false);
+          localStorage.setItem(SESSION_TYPE_KEY, 'created');
           setView('session');
         }
         break;
@@ -47,6 +65,7 @@ function App() {
       case 'session_joined':
         if (lastMessage.session_code) {
           setSessionCode(lastMessage.session_code);
+          localStorage.setItem(SESSION_TYPE_KEY, 'joined');
           // When joining, user_count will be set by partner_connected message
           setView('session');
         }
@@ -82,9 +101,16 @@ function App() {
           alert('Session is full. Maximum 5 users allowed.');
           setView('landing');
           setWsUrl(null);
+          // Clear saved session if session is full
+          localStorage.removeItem(SESSION_CODE_KEY);
+          localStorage.removeItem(SESSION_TYPE_KEY);
         } else if (lastMessage.message?.includes('Session not found')) {
-          alert('Session not found. Please check the session code.');
-          setView('join');
+          alert('Session not found. The session may have expired. Please create or join a new session.');
+          setView('landing');
+          setWsUrl(null);
+          // Clear saved session if not found
+          localStorage.removeItem(SESSION_CODE_KEY);
+          localStorage.removeItem(SESSION_TYPE_KEY);
         }
         break;
 
@@ -121,7 +147,26 @@ function App() {
     setPartnerConnected(false);
     setUserCount(1);
     setWsUrl(null);
+    // Clear localStorage when explicitly leaving
+    localStorage.removeItem(SESSION_CODE_KEY);
+    localStorage.removeItem(SESSION_TYPE_KEY);
   };
+
+  // Try to reconnect to existing session on mount or when wsBaseUrl becomes available
+  useEffect(() => {
+    const savedSessionCode = localStorage.getItem(SESSION_CODE_KEY);
+    
+    if (savedSessionCode && wsBaseUrl && !wsUrl && view === 'landing') {
+      console.log('Found saved session code, attempting to reconnect:', savedSessionCode);
+      // Set session code first so it displays immediately
+      setSessionCode(savedSessionCode);
+      
+      // Reconnect to the session (this will rejoin the existing session)
+      const url = `${wsBaseUrl}/${savedSessionCode}`;
+      setWsUrl(url);
+      setView('session'); // Show session view while reconnecting
+    }
+  }, [wsBaseUrl, wsUrl, view]); // Re-run if wsBaseUrl changes or wsUrl is not set
 
   const handleVibrate = (pattern: number) => {
     console.log('Sending vibration message:', { type: 'vibrate', pattern });
@@ -181,6 +226,7 @@ function App() {
         userCount={userCount}
         onVibrate={handleVibrate}
         lastMessage={lastMessage}
+        onExit={handleBackToLanding}
       />
     );
   }

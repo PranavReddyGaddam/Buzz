@@ -9,6 +9,7 @@ interface VibrationControlProps {
   userCount: number;
   onVibrate: (pattern: number) => void;
   lastMessage: WebSocketMessage | null;
+  onExit: () => void;
 }
 
 export default function VibrationControl({
@@ -18,6 +19,7 @@ export default function VibrationControl({
   userCount,
   onVibrate,
   lastMessage,
+  onExit,
 }: VibrationControlProps) {
   const [hapticSupport, setHapticSupport] = useState(getHapticSupport());
   const [pressedButton, setPressedButton] = useState<number | null>(null);
@@ -33,15 +35,21 @@ export default function VibrationControl({
     if (lastMessage && lastMessage.type === 'vibrate' && lastMessage.pattern) {
       console.log('Received vibration message, pattern:', lastMessage.pattern);
       console.log('Haptic support:', hapticSupport);
+      console.log('Platform:', navigator.userAgent);
+      console.log('Is iOS:', /iPhone|iPad|iPod/.test(navigator.userAgent));
+      console.log('Vibration API available:', 'vibrate' in navigator);
       
-      // Show visual indicator
+      // Show visual indicator immediately
       setReceivedVibration(lastMessage.pattern);
       setTimeout(() => {
         setReceivedVibration(null);
-      }, 1000);
+      }, 2000); // Show longer so user can see it
       
       // Trigger haptic feedback when receiving vibration message
-      triggerHaptic(lastMessage.pattern).catch(err => {
+      // On iOS, this will attempt vibration but may be blocked by browser
+      triggerHaptic(lastMessage.pattern).then(() => {
+        console.log('Vibration triggered successfully');
+      }).catch(err => {
         console.warn('Failed to trigger haptic feedback:', err);
       });
     }
@@ -109,16 +117,30 @@ export default function VibrationControl({
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="bg-white rounded-2xl shadow-xl p-6 mb-6">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">
-              Session Code
-            </h1>
-            <p className="text-4xl font-mono font-bold text-indigo-600 mb-4 tracking-widest">
-              {sessionCode}
-            </p>
-            <div className="flex items-center justify-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${getStatusColor()}`}></div>
-              <span className="text-sm text-gray-600">{getStatusText()}</span>
+          <div className="relative">
+            {/* Exit Button - Top Right */}
+            <button
+              onClick={onExit}
+              className="absolute top-0 right-0 px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors duration-200 border border-red-200 hover:border-red-300 active:bg-red-200"
+            >
+              Exit Session
+            </button>
+            
+            {/* Session Info - Centered */}
+            <div className="text-center pt-1">
+              <h1 className="text-2xl font-bold text-gray-800 mb-2">
+                Session Code
+              </h1>
+              <p className="text-4xl font-mono font-bold text-indigo-600 mb-4 tracking-widest">
+                {sessionCode}
+              </p>
+              <div className="flex items-center justify-center gap-2">
+                <div className={`w-3 h-3 rounded-full ${getStatusColor()}`}></div>
+                <span className="text-sm text-gray-600">{getStatusText()}</span>
+              </div>
+              {connectionStatus === 'connecting' && (
+                <p className="text-xs text-gray-500 mt-2">Reconnecting to session...</p>
+              )}
             </div>
           </div>
         </div>
@@ -134,7 +156,9 @@ export default function VibrationControl({
         {hapticSupport.supported && hapticSupport.method === 'ios-haptic' && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
             <p className="text-sm text-blue-800 text-center">
-              ℹ️ iOS device detected. Haptic feedback works when you press buttons, but not when receiving messages from your partner. For full iOS support, use the native app (see setup guide).
+              ℹ️ <strong>iOS Limitation:</strong> Chrome and Safari on iOS use WebKit and restrict programmatic vibration. 
+              Haptics work when <strong>you press buttons</strong>, but <strong>not when receiving messages</strong> from your partner. 
+              The app will still attempt to vibrate - check if you feel anything when the green "Vibration Received" message appears.
             </p>
           </div>
         )}
@@ -142,14 +166,20 @@ export default function VibrationControl({
         {/* Received Vibration Indicator */}
         {receivedVibration && (
           <div className="bg-green-100 border-2 border-green-500 rounded-lg p-4 mb-6 animate-pulse">
-            <p className="text-green-800 text-center font-semibold">
+            <p className="text-green-800 text-center font-semibold text-lg">
               📳 Vibration Received! Pattern: {receivedVibration}
-              {hapticSupport.method === 'ios-haptic' && (
-                <span className="block text-sm text-green-600 mt-1">
-                  (Note: On iOS, haptic feedback only works on button presses)
-                </span>
-              )}
             </p>
+            {hapticSupport.method === 'ios-haptic' && (
+              <p className="text-sm text-green-700 mt-2 text-center">
+                ⚠️ iOS browsers (Chrome/Safari) block vibration from WebSocket messages.<br/>
+                Check your device - vibration may not have occurred due to browser restrictions.
+              </p>
+            )}
+            {hapticSupport.method === 'vibration' && (
+              <p className="text-sm text-green-700 mt-2 text-center">
+                ✅ Vibration should have triggered on your device
+              </p>
+            )}
           </div>
         )}
 

@@ -238,7 +238,7 @@ A real-time vibration communication webapp that connects two people in a session
 
 *iOS Web: Haptic feedback only works on direct button presses, not programmatically when receiving messages.
 
-- **Session Limit**: Maximum 2 users per session. If a third person tries to join, they will receive an error message.
+- **Session Limit**: Maximum 5 users per session. If a 6th person tries to join, they will receive an error message.
 
 - **Session Cleanup**: Sessions are automatically cleaned up after 1 hour of inactivity.
 

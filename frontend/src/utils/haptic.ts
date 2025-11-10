@@ -21,6 +21,26 @@ const isIOS = (): boolean => {
   return typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent);
 };
 
+// Check if Web Haptics API is available (iOS 13+, but very limited support)
+const isWebHapticsSupported = (): boolean => {
+  return typeof navigator !== 'undefined' && 'vibrate' in navigator;
+};
+
+// Store whether user has interacted with the page (required for iOS)
+let userHasInteracted = false;
+
+// Initialize user interaction tracking
+if (typeof window !== 'undefined') {
+  const enableHaptics = () => {
+    userHasInteracted = true;
+    // Remove listeners after first interaction
+    window.removeEventListener('touchstart', enableHaptics);
+    window.removeEventListener('click', enableHaptics);
+  };
+  window.addEventListener('touchstart', enableHaptics, { once: true });
+  window.addEventListener('click', enableHaptics, { once: true });
+}
+
 // iOS Safari provides automatic haptic feedback on button presses
 // However, we cannot programmatically trigger haptics without user interaction in iOS Safari
 // For programmatic haptics (like when receiving messages), Capacitor is required
@@ -105,25 +125,66 @@ export const triggerHaptic = async (pattern: number | number[]): Promise<void> =
     }
   }
 
-  // Try Vibration API (Android)
+  // Try Vibration API (Android and iOS)
+  // NOTE: On iOS (including Chrome), navigator.vibrate exists but is heavily restricted
+  // It only works during or immediately after a user interaction (touch/click)
+  // When a WebSocket message arrives (no user interaction), iOS blocks programmatic vibration
   if (isVibrationAPISupported()) {
     try {
-      navigator.vibrate(patternArray);
-      return;
+      // Always try to vibrate - on Android it works, on iOS it might work if user recently interacted
+      // On iOS, this will silently fail if called outside user interaction context
+      const result = navigator.vibrate(patternArray);
+      
+      if (result === false && isIOS()) {
+        // iOS explicitly rejected the vibration (no user interaction context)
+        console.log('iOS: Vibration blocked - no active user interaction context');
+      } else {
+        // Vibration was accepted (Android) or attempted (iOS)
+        console.log('Vibration triggered:', { pattern: patternArray, result, isIOS: isIOS() });
+        if (isIOS()) {
+          userHasInteracted = true; // Mark that we've tried
+        }
+        return;
+      }
     } catch (e) {
-      console.warn('Vibration API failed:', e);
+      console.warn('Vibration API error:', e);
     }
   }
 
-  // iOS Safari limitation: Cannot programmatically trigger haptics without user interaction
-  // iOS Safari automatically provides haptic feedback when user presses buttons
-  // For programmatic haptics on iOS, the app must be wrapped with Capacitor
+  // iOS Chrome/Safari: IMPORTANT - Chrome on iOS uses WebKit (same as Safari)
+  // Apple requires ALL browsers on iOS to use WebKit, so Chrome has identical restrictions
+  // This means: Programmatic vibration (triggered by WebSocket messages) is BLOCKED
+  // Vibration ONLY works when triggered by direct user interaction (button press, touch, etc.)
   if (isIOS() && !isCapacitor()) {
-    // In iOS Safari web browser, haptic feedback only works on direct user interaction
-    // When receiving vibration messages, we cannot trigger haptics programmatically
-    // User will feel haptics when they press buttons, but not when receiving messages
-    console.info('iOS Safari: Haptic feedback requires user interaction or Capacitor wrapper');
-    return;
+    // Try one more aggressive attempt - use the full pattern
+    if (isVibrationAPISupported()) {
+      try {
+        // Attempt vibration - on iOS this will be silently ignored if no user interaction
+        const vibrateResult = navigator.vibrate(patternArray);
+        console.log('iOS: Vibration API called', { 
+          pattern: patternArray, 
+          result: vibrateResult,
+          userHasInteracted,
+          note: 'If result is false or vibration fails, iOS blocked it due to no user interaction'
+        });
+        
+        // Also try with a simple pattern in case the complex one fails
+        if (!vibrateResult) {
+          navigator.vibrate([100]); // Simple 100ms vibration
+          console.log('iOS: Attempted simple vibration pattern');
+        }
+      } catch (e) {
+        console.warn('iOS: Vibration API threw error (expected when no user interaction):', e);
+      }
+    }
+    
+    // Log the technical limitation
+    console.warn(
+      'iOS WebKit Limitation: Chrome and Safari on iOS block programmatic vibration.\n' +
+      'Vibration only works during direct user interactions (button presses), not when receiving WebSocket messages.\n' +
+      'This is a browser security restriction, not a bug in this app.\n' +
+      'Solution: Use Capacitor to build a native app for full iOS haptic support.'
+    );
   }
 
   // If all else fails, just return (no haptic feedback)
