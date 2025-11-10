@@ -21,11 +21,6 @@ const isIOS = (): boolean => {
   return typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent);
 };
 
-// Check if Web Haptics API is available (iOS 13+, but very limited support)
-const isWebHapticsSupported = (): boolean => {
-  return typeof navigator !== 'undefined' && 'vibrate' in navigator;
-};
-
 // Store whether user has interacted with the page (required for iOS)
 let userHasInteracted = false;
 
