@@ -25,6 +25,10 @@ yarn-error.log*
 .env.local
 .env.*.local
 
+# Railway
+.railway
+railway.json
+
 # IDE
 .vscode/
 .idea/

@@ -6,12 +6,6 @@
  * - Native: Capacitor Haptics plugin (when wrapped)
  */
 
-interface HapticPattern {
-  type: 'vibrate' | 'haptic';
-  pattern: number[];
-  hapticType?: 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error';
-}
-
 // Check if we're in a Capacitor environment
 const isCapacitor = (): boolean => {
   return typeof window !== 'undefined' && (window as any).Capacitor !== undefined;
@@ -93,25 +87,14 @@ export const triggerHaptic = async (pattern: number | number[]): Promise<void> =
       const hapticType = patternToHapticType(patternNumber);
       
       // Map to Capacitor impact styles
-      let impactStyle: ImpactStyle;
-      switch (hapticType) {
-        case 'light':
-          impactStyle = ImpactStyle.Light;
-          break;
-        case 'medium':
-          impactStyle = ImpactStyle.Medium;
-          break;
-        case 'heavy':
-          impactStyle = ImpactStyle.Heavy;
-          break;
-        default:
-          impactStyle = ImpactStyle.Medium;
-      }
+      const style = hapticType === 'light' ? ImpactStyle.Light :
+                   hapticType === 'heavy' ? ImpactStyle.Heavy :
+                   ImpactStyle.Medium;
 
       // Trigger haptic feedback based on pattern count
       const count = getVibrationCount(patternArray);
       for (let i = 0; i < count; i++) {
-        await Haptics.impact({ style: impactStyle });
+        await Haptics.impact({ style });
         if (i < count - 1) {
           await new Promise(resolve => setTimeout(resolve, 150));
         }

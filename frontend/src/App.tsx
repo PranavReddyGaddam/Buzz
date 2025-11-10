@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useWebSocket } from './hooks/useWebSocket';
-import { WebSocketMessage } from './types/websocket';
-import SessionCreate from './components/SessionCreate';
 import SessionJoin from './components/SessionJoin';
 import VibrationControl from './components/VibrationControl';
 
