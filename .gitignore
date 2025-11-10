@@ -47,3 +47,6 @@ frontend/.vite/
 # Logs
 *.log
 
+# iOS App (private)
+ios-app/
+

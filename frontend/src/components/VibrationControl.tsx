@@ -188,7 +188,7 @@ export default function VibrationControl({
           <h2 className="text-xl font-semibold text-gray-800 mb-6 text-center">
             Send Vibration
           </h2>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 mb-4">
             {[
               { label: 'A', pattern: 1, description: '1 vibration' },
               { label: 'B', pattern: 2, description: '2 vibrations' },
@@ -225,6 +225,35 @@ export default function VibrationControl({
               </button>
             ))}
           </div>
+          
+          {/* Correct Button - Full Width */}
+          <button
+            onClick={() => handleButtonClick(5)}
+            disabled={connectionStatus !== 'connected' || userCount < 2}
+            className={`
+              relative w-full py-6 px-6 rounded-xl font-bold text-xl
+              transition-all duration-200 transform
+              ${
+                pressedButton === 5
+                  ? 'scale-95 bg-green-700'
+                  : receivedVibration === 5
+                  ? 'scale-105 bg-green-400 ring-4 ring-green-300'
+                  : 'scale-100 hover:scale-105 active:scale-95'
+              }
+              ${
+                connectionStatus === 'connected' && userCount >= 2
+                  ? receivedVibration === 5
+                    ? 'bg-green-400 text-white shadow-lg'
+                    : 'bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }
+            `}
+          >
+            <div className="text-2xl mb-1">✓ Correct</div>
+            <div className="text-sm font-normal opacity-90">
+              5 seconds vibration
+            </div>
+          </button>
         </div>
       </div>
     </div>

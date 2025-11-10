@@ -87,6 +87,10 @@ export const triggerHaptic = async (pattern: number | number[]): Promise<void> =
       case 4:
         patternArray = [200, 100, 200, 100, 200, 100, 200];
         break;
+      case 5:
+        // Correct button: 5 seconds continuous vibration
+        patternArray = [5000];
+        break;
       default:
         patternArray = [200];
     }
@@ -99,6 +103,23 @@ export const triggerHaptic = async (pattern: number | number[]): Promise<void> =
   if (isCapacitor()) {
     try {
       const { Haptics, ImpactStyle } = await import('@capacitor/haptics');
+      
+      // Special handling for pattern 5 (Correct - 5 seconds)
+      if (patternNumber === 5) {
+        // Continuous vibration for 5 seconds
+        const duration = 5000; // 5 seconds in milliseconds
+        const interval = 100; // Impact every 100ms
+        const totalImpacts = duration / interval;
+        
+        for (let i = 0; i < totalImpacts; i++) {
+          await Haptics.impact({ style: ImpactStyle.Heavy });
+          if (i < totalImpacts - 1) {
+            await new Promise(resolve => setTimeout(resolve, interval));
+          }
+        }
+        return;
+      }
+      
       const hapticType = patternToHapticType(patternNumber);
       
       // Map to Capacitor impact styles

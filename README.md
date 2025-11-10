@@ -13,11 +13,9 @@ A real-time vibration communication webapp that connects two people in a session
 5. **Check WebSocket:** Open DevTools (F12) → Network → WS to see connections
 6. **Test on mobile:** 
    - **Android:** Use your local IP address for full vibration testing
-   - **iOS:** Works in browser but haptic feedback is limited (see [iOS Setup Guide](./IOS_SETUP.md) for native app)
+   - **iOS:** Works in browser but haptic feedback is limited
 
 **See [Testing Locally](#testing-locally-before-deployment) section for detailed instructions.**
-
-**For full iOS support with haptic feedback, see [iOS Setup Guide](./IOS_SETUP.md).**
 
 ## Tech Stack
 
@@ -185,11 +183,12 @@ A real-time vibration communication webapp that connects two people in a session
    - Enter the 6-digit session code
    - Click "Join"
 6. **Send vibrations:**
-   - Once both users are connected, click buttons A, B, C, or D
+   - Once both users are connected, click buttons A, B, C, D, or Correct
    - Button A: 1 vibration (200ms)
    - Button B: 2 vibrations (200ms, pause 100ms, 200ms)
    - Button C: 3 vibrations (200ms, pause 100ms, 200ms, pause 100ms, 200ms)
    - Button D: 4 vibrations (200ms, pause 100ms, 200ms, pause 100ms, 200ms, pause 100ms, 200ms)
+   - Button Correct: 5 seconds continuous vibration
    - The partner's device will vibrate with the corresponding pattern
 
 ## Environment Variables
@@ -215,13 +214,11 @@ A real-time vibration communication webapp that connects two people in a session
 - ⚠️ **Limited support** - haptic feedback works on button presses (automatic iOS feature)
 - ❌ **Does NOT work when receiving vibration messages** (iOS Safari limitation)
 - ✅ All other features work (WebSocket, UI, session management)
-- 📱 **For full iOS support**: Use the native iOS app (see [iOS Setup Guide](./IOS_SETUP.md))
 
 **Why iOS Web Browser is Limited:**
 - iOS Safari does not support the Vibration API
 - All iOS browsers use WebKit (Apple restriction)
 - Programmatic haptic feedback requires user interaction in iOS Safari
-- Solution: Wrap the app with Capacitor to create a native iOS app
 
 **Desktop:**
 - ❌ No vibration hardware
@@ -233,7 +230,6 @@ A real-time vibration communication webapp that connects two people in a session
 |----------|---------------|------------------------|-----------|-------------------|
 | Android Web | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
 | iOS Web | ✅ Yes* | ❌ No | ✅ Yes | ✅ Yes |
-| iOS Native (Capacitor) | ✅ Yes | ✅ Yes | ✅ Yes | ✅ Yes |
 | Desktop | ❌ No | ❌ No | ✅ Yes | ✅ Yes |
 
 *iOS Web: Haptic feedback only works on direct button presses, not programmatically when receiving messages.
@@ -263,7 +259,7 @@ A real-time vibration communication webapp that connects two people in a session
   ```json
   {
     "type": "vibrate",
-    "pattern": 1  // 1-4
+    "pattern": 1  // 1-5 (5 = correct, 5 seconds)
   }
   ```
 
@@ -291,7 +287,7 @@ A real-time vibration communication webapp that connects two people in a session
   ```json
   {
     "type": "vibrate",
-    "pattern": 1  // 1-4
+    "pattern": 1  // 1-5 (5 = correct, 5 seconds)
   }
   ```
 

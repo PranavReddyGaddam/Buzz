@@ -4,7 +4,7 @@ from typing import Literal, Optional
 
 class VibrateMessage(BaseModel):
     type: Literal["vibrate"]
-    pattern: int  # 1-4
+    pattern: int  # 1-5 (5 = correct, 5 seconds)
 
 
 class SessionMessage(BaseModel):
